@@ -34,6 +34,87 @@ describe('cached integration tests', () => {
     expect(await cached.cache.get('foo')).to.eql('bar');
   });
 
+  it('set and get complex values in cache', async () => {
+    const cached = new Cached<{ foo: string; bar: number }>(
+      { redis },
+      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
+    );
+
+    await cached.cache.set('foo', { foo: 'something', bar: 9 });
+    expect(await cached.cache.get('foo')).to.eql({ foo: 'something', bar: 9 });
+  });
+
+  it('set and get complex list values in cache', async () => {
+    const cached = new Cached<{ foo: string; bar: number }>(
+      { redis },
+      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
+    );
+
+    await cached.cache.set('foo', { foo: 'no-conflict', bar: 90 });
+
+    await cached.cache.setList('foo', [
+      { foo: 'something', bar: 9 },
+      { foo: 'another', bar: 1 },
+    ]);
+    expect(await cached.cache.getList('foo')).to.eql([
+      { foo: 'something', bar: 9 },
+      { foo: 'another', bar: 1 },
+    ]);
+
+    expect(await cached.cache.get('foo')).to.eql({ foo: 'no-conflict', bar: 90 });
+  });
+
+  it('clear specific list values in cache', async () => {
+    const cached = new Cached<{ foo: string; bar: number }>(
+      { redis },
+      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
+    );
+
+    await cached.cache.set('foo', { foo: 'no-conflict', bar: 90 });
+
+    await cached.cache.setList('foo', [
+      { foo: 'something', bar: 9 },
+      { foo: 'another', bar: 1 },
+    ]);
+    await cached.cache.setList('other-foo', [
+      { foo: 'something', bar: 9 },
+      { foo: 'another', bar: 1 },
+    ]);
+    await cached.cache.delList('foo');
+
+    expect(await cached.cache.getList('foo')).to.eql(null);
+    expect(await cached.cache.getList('other-foo')).to.eql([
+      { foo: 'something', bar: 9 },
+      { foo: 'another', bar: 1 },
+    ]);
+
+    expect(await cached.cache.get('foo')).to.eql({ foo: 'no-conflict', bar: 90 });
+  });
+
+  it('clear all list values in cache', async () => {
+    const cached = new Cached<{ foo: string; bar: number }>(
+      { redis },
+      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
+    );
+
+    await cached.cache.set('foo', { foo: 'no-conflict', bar: 90 });
+
+    await cached.cache.setList('foo', [
+      { foo: 'something', bar: 9 },
+      { foo: 'another', bar: 1 },
+    ]);
+    await cached.cache.setList('other-foo', [
+      { foo: 'something', bar: 9 },
+      { foo: 'another', bar: 1 },
+    ]);
+    await cached.cache.delLists();
+
+    expect(await cached.cache.getList('foo')).to.eql(null);
+    expect(await cached.cache.getList('other-foo')).to.eql(null);
+
+    expect(await cached.cache.get('foo')).to.eql({ foo: 'no-conflict', bar: 90 });
+  });
+
   it('honors prefix', async () => {
     const cached = new Cached<string>(
       { redis },

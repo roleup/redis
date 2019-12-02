@@ -1,3 +1,4 @@
+import Bluebird from 'bluebird';
 import { isBoolean, isInteger, isObject, isString } from 'lodash';
 
 import { Redis } from './redis';
@@ -21,6 +22,8 @@ export class Cache<T> {
   // This has to be a sufficiently unique string that other prefixes will not include it
   // Adding this to the end of each prefix allows a wildcard delete for invalidating cache
   static readonly PREFIX_TERMINATOR = '--<<$$PRE_TERM$$>>--';
+
+  static readonly LIST_PREFIX = '--<<$$LIST$$>>--';
 
   /**
    * @param {ServicesInterface} services
@@ -109,7 +112,6 @@ export class Cache<T> {
 
   /**
    * Set value in cache
-   * @memberof Cached
    * @param {string} key
    * @param {T} instance
    * @param {number} [overrideTtlSec]
@@ -122,10 +124,16 @@ export class Cache<T> {
       throw new Error('key must be a string with length');
     }
 
+    if (instance === null) {
+      await this.del(key);
+      return;
+    }
+
     const value = this.config.stringifyForCache(instance);
 
     if (!isString(value) || value.length === 0) {
-      throw new Error('value must be a string with length');
+      await this.del(key);
+      return;
     }
 
     if (overrideTtlSec && (!isInteger(overrideTtlSec) || overrideTtlSec <= 0)) {
@@ -141,8 +149,46 @@ export class Cache<T> {
   }
 
   /**
+   * Set list in cache
+   * @param {string} key
+   * @param {T[]} instances
+   * @param {number} [overrideTtlSec]
+   * @returns {Promise<void>}
+   */
+  async setList(key: string, instances: T[], overrideTtlSec?: number): Promise<void> {
+    if (!this.enabled) return;
+
+    if (instances.length === 0) {
+      await this.delList(key);
+      return;
+    }
+
+    const stringifiedInstances = instances
+      .filter((instance) => !!instance)
+      .map((instance) => this.config.stringifyForCache(instance))
+      .filter((instance) => !!instance);
+
+    if (stringifiedInstances.length === 0) {
+      await this.delList(key);
+      return;
+    }
+
+    const value = JSON.stringify(stringifiedInstances);
+
+    if (overrideTtlSec && (!isInteger(overrideTtlSec) || overrideTtlSec <= 0)) {
+      throw new Error('overrideTtlSec must be an integer gte 0');
+    }
+
+    const ttl = overrideTtlSec && isInteger(overrideTtlSec) ? overrideTtlSec : this.config.ttlSec;
+
+    await this.services.redis
+      .setex(`${this.config.prefix}${Cache.LIST_PREFIX}${key}`, ttl, value)
+      .then((result) => this.invalidateOnReconnection(result))
+      .catch((error) => this.suppressConnectionError(error));
+  }
+
+  /**
    * Get value from cache by key
-   * @memberof Cached
    * @param {string} key
    * @returns {Promise<*>}
    */
@@ -161,8 +207,33 @@ export class Cache<T> {
   }
 
   /**
+   * Get list from cache
+   * @param {string} key
+   * @returns {Promise<T[] | null>}
+   */
+  async getList(key: string): Promise<T[] | null> {
+    if (!this.enabled) return null;
+
+    if (!isString(key) || key.length === 0) {
+      throw new Error('key must be a string with length');
+    }
+
+    const value = await this.services.redis
+      .get(`${this.config.prefix}${Cache.LIST_PREFIX}${key}`)
+      .then((result) => this.invalidateOnReconnection(result))
+      .catch((error) => this.suppressConnectionError(error));
+
+    if (!value) return null;
+
+    const stringifiedInstances = JSON.parse(value) as string[];
+
+    if (stringifiedInstances.length === 0) return [];
+
+    return Bluebird.map(stringifiedInstances, (stringified) => this.config.parseFromCache(stringified));
+  }
+
+  /**
    * Delete value from cache by key
-   * @memberof Cached
    * @param {string} key
    * @returns {Promise<void>}
    */
@@ -180,16 +251,43 @@ export class Cache<T> {
   }
 
   /**
-   * Invalidate any entries for this cache
-   * @memberof Cached
+   * Delete list value from cache
+   * @param {string} key
    * @returns {Promise<void>}
    */
-  async invalidate(): Promise<void> {
+  async delList(key: string): Promise<void> {
+    if (!this.enabled) return;
+
+    if (!isString(key) || key.length === 0) {
+      throw new Error('key must be a string with length');
+    }
+
+    await this.services.redis
+      .del(`${this.config.prefix}${Cache.LIST_PREFIX}${key}`)
+      .then((result) => this.invalidateOnReconnection(result))
+      .catch((error) => this.suppressConnectionError(error));
+  }
+
+  /**
+   * Delete all lists with prefix from cache
+   * @returns {Promise<void>}
+   */
+  async delLists(): Promise<void> {
+    if (!this.enabled) return;
+    await this.invalidate(this.config.prefix + Cache.LIST_PREFIX);
+  }
+
+  /**
+   * Invalidate any entries for this cache
+   * @param {string} [prefix]
+   * @returns {Promise<void>}
+   */
+  async invalidate(prefix = this.config.prefix): Promise<void> {
     if (!this.enabled) return;
 
     await new Promise((resolve, reject) => {
       const stream = this.services.redis.scanStream({
-        match: `${this.config.prefix}*`,
+        match: `${prefix}*`,
         count: 100,
       });
       stream.on('data', async (resultKeys) => {

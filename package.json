@@ -75,6 +75,25 @@
     ]
   },
   "main": "dist/index.js",
+  "nyc": {
+    "extends": "@istanbuljs/nyc-config-typescript",
+    "all": true,
+    "extension": [
+      ".ts"
+    ],
+    "include": [
+      "*.ts"
+    ],
+    "exclude": [
+      "src/scratch.*"
+    ],
+    "reporter": [
+      "html",
+      "text",
+      "text-summary",
+      "lcov"
+    ]
+  },
   "peerDependencies": {
     "ioredis": "^4.5.1"
   },
@@ -85,12 +104,11 @@
   },
   "scripts": {
     "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
-    "integration": "nyc mocha -r ts-node/register -r tsconfig-paths/register --use_strict --exit \"tests/**/*.it.js\"",
+    "integration": "nyc mocha --recursive -r source-map-support/register -r ts-node/register -r tsconfig-paths/register --use_strict --exit \"tests/**/*.it.+(ts|js)\"",
     "lint": "fixpack && prettier-eslint --write && eslint --fix \"**/*.{js,ts}\"",
     "prepare": "fixpack",
-    "test": "mocha \"tests/**.unit.js\" && npm run lint",
-    "test-most": "mocha \"tests/**.unit.js\" \"tests/**.it.js\" --exit && npm run lint",
-    "unit": "nyc mocha --recursive -r source-map-support/register -r ts-node/register -r tsconfig-paths/register --use_strict --exit \"tests/lib/**/*.unit.+(ts|js)\""
+    "test": "nyc mocha --recursive -r source-map-support/register -r ts-node/register -r tsconfig-paths/register --use_strict --exit \"tests/**/*.+(unit|it).+(ts|js)\"",
+    "unit": "nyc mocha --recursive -r source-map-support/register -r ts-node/register -r tsconfig-paths/register --use_strict --exit \"tests/**/*.unit.+(ts|js)\""
   },
   "types": "dist/index.d.ts"
 }
