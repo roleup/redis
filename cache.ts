@@ -96,14 +96,14 @@ export class Cache<T> {
   /**
    * @returns {void}
    */
-  enable() {
+  enable(): void {
     this.enabled = true;
   }
 
   /**
    * @returns {void}
    */
-  disable() {
+  disable(): void {
     this.enabled = false;
   }
 
@@ -116,6 +116,8 @@ export class Cache<T> {
    * @returns {Promise<void>}
    */
   async set(key: string, instance: T, overrideTtlSec?: number): Promise<void> {
+    if (!this.enabled) return;
+
     if (!isString(key) || key.length === 0) {
       throw new Error('key must be a string with length');
     }
@@ -129,8 +131,6 @@ export class Cache<T> {
     if (overrideTtlSec && (!isInteger(overrideTtlSec) || overrideTtlSec <= 0)) {
       throw new Error('overrideTtlSec must be an integer gte 0');
     }
-
-    if (!this.enabled) return;
 
     const ttl = overrideTtlSec && isInteger(overrideTtlSec) ? overrideTtlSec : this.config.ttlSec;
 
@@ -147,11 +147,11 @@ export class Cache<T> {
    * @returns {Promise<*>}
    */
   async get(key: string): Promise<T | null> {
+    if (!this.enabled) return null;
+
     if (!isString(key) || key.length === 0) {
       throw new Error('key must be a string with length');
     }
-
-    if (!this.enabled) return null;
 
     return this.services.redis
       .get(`${this.config.prefix}${key}`)
@@ -167,11 +167,11 @@ export class Cache<T> {
    * @returns {Promise<void>}
    */
   async del(key: string): Promise<void> {
+    if (!this.enabled) return;
+
     if (!isString(key) || key.length === 0) {
       throw new Error('key must be a string with length');
     }
-
-    if (!this.enabled) return;
 
     await this.services.redis
       .del(`${this.config.prefix}${key}`)
