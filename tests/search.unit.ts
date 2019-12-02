@@ -1,8 +1,5 @@
-'use strict';
-
-const { expect } = require('chai');
-
-const Redis = require('../index');
+import { expect } from 'chai';
+import { Search } from 'index';
 
 describe('search unit tests', () => {
   it('process schema with one field', () => {
@@ -13,7 +10,8 @@ describe('search unit tests', () => {
       },
     };
 
-    const schemaArray = Redis._processSchema(schema);
+    // @ts-ignore
+    const schemaArray = Search.processSchema(schema);
 
     expect(schemaArray).to.eql(['SCHEMA', 'field1', 'TEXT', 'SORTABLE']);
   });
@@ -30,13 +28,15 @@ describe('search unit tests', () => {
       },
     };
 
-    const schemaArray = Redis._processSchema(schema);
+    // @ts-ignore
+    const schemaArray = Search.processSchema(schema);
 
     expect(schemaArray).to.eql(['SCHEMA', 'field1', 'TEXT', 'SORTABLE', 'field2', 'GEO', 'NOSTEM']);
   });
 
   it('pairs to object', () => {
     const pairs = ['foo', '123', 'bar', '3453'];
-    expect(Redis._pairsToObject(pairs)).to.eql({ foo: '123', bar: '3453' });
+    // @ts-ignore
+    expect(Search.pairsToObject(pairs)).to.eql({ foo: '123', bar: '3453' });
   });
 });

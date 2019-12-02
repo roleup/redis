@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.base.json",
+  "files": ["./index.ts", "./cache.ts", "./cached.ts", "./redis.ts", "./search.ts"]
+}

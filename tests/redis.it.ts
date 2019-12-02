@@ -1,18 +1,17 @@
-'use strict';
-
 /* eslint-disable no-process-env, no-unused-expressions */
 
-require('dotenv').config();
+import Promise from 'bluebird';
+import { expect } from 'chai';
+import { config } from 'dotenv';
+import { Redis } from 'index';
+import uuid from 'uuid/v4';
 
-const { expect } = require('chai');
-const uuid = require('uuid/v4');
-const Promise = require('bluebird');
-const Redis = require('../index');
-
+config();
 describe('integration tests', () => {
-  let redis = null;
+  let redis = null as null | Redis;
 
   afterEach(async () => {
+    redis && (await redis.flushdb());
     redis && (await redis.disconnect());
   });
 
@@ -30,19 +29,11 @@ describe('integration tests', () => {
     const otherLock = await redis.lock(lockId, 30);
     expect(otherLock).to.eql(null);
 
+    // @ts-ignore
     await lock.unlock();
 
     const lastLock = await redis.lock(lockId, 30);
     expect(lastLock).not.to.eql(null);
-  });
-});
-
-describe('debounce tests', () => {
-  let redis = null;
-
-  afterEach(async () => {
-    await redis.flushdb();
-    redis && (await redis.disconnect());
   });
 
   it('debounces many calls using redis', async () => {
@@ -57,16 +48,17 @@ describe('debounce tests', () => {
     let calls = 0;
     const totalCalls = 100;
 
-    const times = Array.from(Array(totalCalls).keys());
+    const times = [...new Array(totalCalls).keys()];
     const timeoutMs = 500;
     await Promise.map(
       times,
       async () => {
         calls++;
+        // @ts-ignore
         await redis.debounce(updateCounter, 'foo', timeoutMs);
         await Promise.delay(50);
       },
-      { concurrency: 10 },
+      { concurrency: 10 }
     );
 
     await Promise.delay(timeoutMs * 2);
