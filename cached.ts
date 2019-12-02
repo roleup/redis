@@ -22,7 +22,7 @@ export class Cached<T> {
    * @param {ConfigInterface} config
    */
   constructor(services: ServicesInterface, config: ConfigInterface<T>) {
-    this.cache = new Cache(services, config);
+    this.cache = new Cache<T>(services, config);
   }
 
   readonly cache: Cache<T>;
