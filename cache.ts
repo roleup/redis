@@ -1,57 +1,65 @@
-import { isInteger, isObject, isString } from 'lodash';
+import { isBoolean, isInteger, isObject, isString } from 'lodash';
 
 import { Redis } from './redis';
+
+interface ServicesInterface {
+  redis: Redis;
+}
+
+interface ConfigInterface<T> {
+  prefix: string;
+  ttlSec: number;
+  resetOnReconnection?: boolean;
+  stringifyForCache(instance: T): string;
+  parseFromCache(instance: string): T;
+}
 
 /**
  * @class
  */
-export class Cache {
+export class Cache<T> {
   // This has to be a sufficiently unique string that other prefixes will not include it
   // Adding this to the end of each prefix allows a wildcard delete for invalidating cache
   static readonly PREFIX_TERMINATOR = '--<<$$PRE_TERM$$>>--';
 
   /**
-   * @param {Redis} redis
-   * @param {string} prefix
-   * @param {number} ttlSec
-   * @param {boolean} [resetOnReconnection=true] clear the cache when a new connection is made
+   * @param {ServicesInterface} services
+   * @param {ConfigInterface} config
    */
-  constructor(redis: Redis, prefix: string, ttlSec: number, resetOnReconnection = true) {
-    if (!isObject(redis)) {
+  constructor(services: ServicesInterface, config: ConfigInterface<T>) {
+    if (!isObject(services.redis)) {
       throw new TypeError('redis must be an object');
     }
 
-    if (!isString(prefix) || prefix.length === 0) {
+    if (!isString(config.prefix) || config.prefix.length === 0) {
       throw new Error('prefix must be a string with length');
     }
 
-    if (!isInteger(ttlSec) || ttlSec <= 0) {
+    if (!isInteger(config.ttlSec) || config.ttlSec <= 0) {
       throw new Error('ttlSec must be an integer gte 0');
     }
 
-    if (prefix.includes(Cache.PREFIX_TERMINATOR)) {
+    if (config.prefix.includes(Cache.PREFIX_TERMINATOR)) {
       throw new Error(`prefix cannot include: ${Cache.PREFIX_TERMINATOR}`);
     }
 
-    this.redis = redis;
-    this.prefix = prefix + Cache.PREFIX_TERMINATOR;
-    this.ttlSec = ttlSec;
+    this.services = services;
+    this.config = {
+      ...config,
+      prefix: config.prefix + Cache.PREFIX_TERMINATOR,
+      resetOnReconnection: isBoolean(config.resetOnReconnection) ? config.resetOnReconnection : true,
+    };
     this.invalidateOnConnection = false;
-    this.resetOnReconnection = resetOnReconnection;
     this.enabled = true;
   }
 
-  private readonly redis;
+  private readonly services: ServicesInterface;
 
-  private readonly prefix;
-
-  private readonly ttlSec;
+  private readonly config: ConfigInterface<T>;
 
   private enabled: boolean;
 
   private invalidateOnConnection: boolean;
-
-  private readonly resetOnReconnection: boolean;
 
   /**
    * Suppress connection errors
@@ -74,9 +82,9 @@ export class Cache {
    * @returns {any}
    */
   private async invalidateOnReconnection<T>(result: T): Promise<T | null> {
-    if (this.resetOnReconnection && this.invalidateOnConnection) {
+    if (this.config.resetOnReconnection && this.invalidateOnConnection) {
       // eslint-disable-next-line no-console
-      console.log(`Resetting cache on: ${this.prefix}`);
+      console.log(`Resetting cache on: ${this.config.prefix}`);
       this.invalidateOnConnection = false;
       await this.invalidate();
       return null;
@@ -103,14 +111,16 @@ export class Cache {
    * Set value in cache
    * @memberof Cached
    * @param {string} key
-   * @param {string} value
+   * @param {T} instance
    * @param {number} [overrideTtlSec]
    * @returns {Promise<void>}
    */
-  async set(key: string, value: string, overrideTtlSec?: number): Promise<void> {
+  async set(key: string, instance: T, overrideTtlSec?: number): Promise<void> {
     if (!isString(key) || key.length === 0) {
       throw new Error('key must be a string with length');
     }
+
+    const value = this.config.stringifyForCache(instance);
 
     if (!isString(value) || value.length === 0) {
       throw new Error('value must be a string with length');
@@ -122,10 +132,10 @@ export class Cache {
 
     if (!this.enabled) return;
 
-    const ttl = isInteger(overrideTtlSec) ? overrideTtlSec : this.ttlSec;
+    const ttl = overrideTtlSec && isInteger(overrideTtlSec) ? overrideTtlSec : this.config.ttlSec;
 
-    await this.redis
-      .setex(`${this.prefix}${key}`, ttl, value)
+    await this.services.redis
+      .setex(`${this.config.prefix}${key}`, ttl, value)
       .then((result) => this.invalidateOnReconnection(result))
       .catch((error) => this.suppressConnectionError(error));
   }
@@ -136,16 +146,17 @@ export class Cache {
    * @param {string} key
    * @returns {Promise<*>}
    */
-  async get(key: string): Promise<string | null> {
+  async get(key: string): Promise<T | null> {
     if (!isString(key) || key.length === 0) {
       throw new Error('key must be a string with length');
     }
 
     if (!this.enabled) return null;
 
-    return this.redis
-      .get(`${this.prefix}${key}`)
+    return this.services.redis
+      .get(`${this.config.prefix}${key}`)
       .then((result) => this.invalidateOnReconnection(result))
+      .then((result) => (result ? this.config.parseFromCache(result) : null))
       .catch((error) => this.suppressConnectionError(error));
   }
 
@@ -162,8 +173,8 @@ export class Cache {
 
     if (!this.enabled) return;
 
-    await this.redis
-      .del(`${this.prefix}${key}`)
+    await this.services.redis
+      .del(`${this.config.prefix}${key}`)
       .then((result) => this.invalidateOnReconnection(result))
       .catch((error) => this.suppressConnectionError(error));
   }
@@ -177,13 +188,13 @@ export class Cache {
     if (!this.enabled) return;
 
     await new Promise((resolve, reject) => {
-      const stream = this.redis.scanStream({
-        match: `${this.prefix}*`,
+      const stream = this.services.redis.scanStream({
+        match: `${this.config.prefix}*`,
         count: 100,
       });
       stream.on('data', async (resultKeys) => {
         stream.pause();
-        await this.redis.del(...resultKeys);
+        await this.services.redis.del(...resultKeys);
         stream.resume();
       });
 

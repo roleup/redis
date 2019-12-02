@@ -1,19 +1,29 @@
 import { Cache } from './cache';
 import { Redis } from './redis';
 
+interface ServicesInterface {
+  redis: Redis;
+}
+
+interface ConfigInterface<T> {
+  prefix: string;
+  ttlSec: number;
+  resetOnReconnection?: boolean;
+  stringifyForCache(instance: T): string;
+  parseFromCache(instance: string): T;
+}
+
 /**
  * @class
  */
-export class Cached {
+export class Cached<T> {
   /**
-   * @param {Redis} redis
-   * @param {string} prefix
-   * @param {number} ttlSec
-   * @param {boolean} [resetOnReconnection=true] clear the cache when a new connection is made
+   * @param {ServicesInterface} services
+   * @param {ConfigInterface} config
    */
-  constructor(redis: Redis, prefix: string, ttlSec: number, resetOnReconnection = true) {
-    this.cache = new Cache(redis, prefix, ttlSec, resetOnReconnection);
+  constructor(services: ServicesInterface, config: ConfigInterface<T>) {
+    this.cache = new Cache(services, config);
   }
 
-  readonly cache: Cache;
+  readonly cache: Cache<T>;
 }
