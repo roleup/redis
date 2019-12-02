@@ -1,11 +1,6 @@
-source_resources/**
-processed_resources/**
-raw_training_data/**
-output/**
 .nyc_output/**
-tf_record/**
-model/**
 node_modules/**
 images/**
 coverage/**
 scratch.js
+dist/

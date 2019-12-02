@@ -1,8 +1,5 @@
-'use strict';
-
-const { expect } = require('chai');
-
-const Redis = require('../index');
+import { expect } from 'chai';
+import { Redis } from 'index';
 
 describe('unit tests', () => {
   it('processes multi result', () => {

@@ -1,19 +1,18 @@
-'use strict';
+import Promise from 'bluebird';
+import { expect } from 'chai';
+import { config } from 'dotenv';
+import { Cached, Redis } from 'index';
 
-/* eslint-disable no-process-env, no-unused-expressions, require-jsdoc */
-require('dotenv').config();
-const { expect } = require('chai');
-const Promise = require('bluebird');
-
-const Redis = require('../index');
-const { Cached } = require('../index');
+config();
 
 describe('cached integration tests', () => {
   let redis;
 
   beforeEach(async () => {
     redis = new Redis({
+      // eslint-disable-next-line no-process-env
       host: process.env.REDIS_HOST,
+      // eslint-disable-next-line no-process-env
       port: process.env.REDIS_PORT,
     });
 
@@ -21,6 +20,7 @@ describe('cached integration tests', () => {
   });
 
   after(async () => {
+    // eslint-disable-next-line no-unused-expressions
     redis && (await redis.disconnect());
   });
 
@@ -43,7 +43,7 @@ describe('cached integration tests', () => {
     const cached = new Cached(redis, 'something', 1);
 
     await cached.cache.set('foo', 'bar');
-    await new Promise((res) => setTimeout(res, 1400));
+    await new Promise((resolve) => setTimeout(resolve, 1400));
     expect(await cached.cache.get('foo')).to.eql(null);
   });
 
@@ -51,7 +51,7 @@ describe('cached integration tests', () => {
     const cached = new Cached(redis, 'something', 10);
 
     await cached.cache.set('foo', 'bar', 1);
-    await new Promise((res) => setTimeout(res, 1400));
+    await new Promise((resolve) => setTimeout(resolve, 1400));
     expect(await cached.cache.get('foo')).to.eql(null);
   });
 
@@ -98,14 +98,12 @@ describe('cached integration tests', () => {
   });
 
   it('with bad connection, get returns null', async () => {
-    const cached = new Cached(
-      new Redis('not-here:6379', { enableOfflineQueue: false }),
-      'something',
-      1,
-    );
+    const notHereRedis = new Redis('not-here:6379', { enableOfflineQueue: false });
+    const cached = new Cached(notHereRedis, 'something', 1);
 
     await cached.cache.set('foo', 'bar');
     expect(await cached.cache.get('foo')).to.eql(null);
+    notHereRedis.disconnect();
   });
 
   it('with bad connection, invalidate on reconnection', async () => {
@@ -115,6 +113,7 @@ describe('cached integration tests', () => {
     expect(await cached.cache.get('foo')).to.eql('bar');
 
     const oldSetex = redis.setex;
+    // eslint-disable-next-line prettier/prettier
     redis.setex = () => Promise.reject(new Error('stream isn\'t writeable'));
 
     await cached.cache.set('foo', 'bar');
