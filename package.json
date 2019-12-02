@@ -1,7 +1,7 @@
 {
   "name": "@roleup/redis",
   "description": "Redis wrapper",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "author": "Eric Hacke",
   "bugs": {
     "url": "https://github.com/roleup/redis/issues"
