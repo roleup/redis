@@ -1,4 +1,4 @@
-import { Cache } from './cache';
+import { Cache, CacheInterface } from './cache';
 import { Redis } from './redis';
 
 interface ServicesInterface {
@@ -13,17 +13,55 @@ interface ConfigInterface<T> {
   parseFromCache(instance: string): T;
 }
 
+/* eslint-disable class-methods-use-this, require-jsdoc, no-empty-function, @typescript-eslint/no-empty-function */
+
+class NoCache<T> implements CacheInterface<T> {
+  async del(): Promise<void> {}
+
+  async delList(): Promise<void> {
+    return undefined;
+  }
+
+  async delLists(): Promise<void> {
+    return undefined;
+  }
+
+  disable(): void {}
+
+  enable(): void {}
+
+  async get(): Promise<T | null> {
+    return null;
+  }
+
+  async getList(): Promise<T[] | null> {
+    return null;
+  }
+
+  async invalidate(): Promise<void> {}
+
+  async set(): Promise<void> {}
+
+  async setList(): Promise<void> {}
+}
+
+/* eslint-enable class-methods-use-this, require-jsdoc, no-empty-function, @typescript-eslint/no-empty-function */
+
 /**
  * @class
  */
 export class Cached<T> {
-  /**
-   * @param {ServicesInterface} services
-   * @param {ConfigInterface} config
-   */
-  constructor(services: ServicesInterface, config: ConfigInterface<T>) {
-    this.cache = new Cache<T>(services, config);
+  constructor() {
+    this._cache = new NoCache<T>();
   }
 
-  readonly cache: Cache<T>;
+  configureCache(services: ServicesInterface, config: ConfigInterface<T>) {
+    this._cache = new Cache<T>(services, config);
+  }
+
+  get cache(): CacheInterface<T> {
+    return this._cache;
+  }
+
+  private _cache: CacheInterface<T>;
 }

@@ -15,10 +15,23 @@ interface ConfigInterface<T> {
   parseFromCache(instance: string): T;
 }
 
+export interface CacheInterface<T> {
+  enable(): void;
+  disable(): void;
+  set(key: string, instance: T, overrideTtlSec?: number): Promise<void>;
+  setList(key: string, instances: T[], overrideTtlSec?: number): Promise<void>;
+  get(key: string): Promise<T | null>;
+  getList(key: string): Promise<T[] | null>;
+  del(key: string): Promise<void>;
+  delList(key: string): Promise<void>;
+  delLists(): Promise<void>;
+  invalidate(prefix?): Promise<void>;
+}
+
 /**
  * @class
  */
-export class Cache<T> {
+export class Cache<T> implements CacheInterface<T> {
   // This has to be a sufficiently unique string that other prefixes will not include it
   // Adding this to the end of each prefix allows a wildcard delete for invalidating cache
   static readonly PREFIX_TERMINATOR = '--<<$$PRE_TERM$$>>--';

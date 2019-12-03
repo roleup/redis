@@ -25,17 +25,16 @@ describe('cached integration tests', () => {
   });
 
   it('set and get values in cache', async () => {
-    const cached = new Cached<string>(
-      { redis },
-      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
-    );
+    const cached = new Cached<string>();
+    cached.configureCache({ redis }, { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result });
 
     await cached.cache.set('foo', 'bar');
     expect(await cached.cache.get('foo')).to.eql('bar');
   });
 
   it('set and get complex values in cache', async () => {
-    const cached = new Cached<{ foo: string; bar: number }>(
+    const cached = new Cached<{ foo: string; bar: number }>();
+    cached.configureCache(
       { redis },
       { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
     );
@@ -45,7 +44,8 @@ describe('cached integration tests', () => {
   });
 
   it('set and get complex list values in cache', async () => {
-    const cached = new Cached<{ foo: string; bar: number }>(
+    const cached = new Cached<{ foo: string; bar: number }>();
+    cached.configureCache(
       { redis },
       { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
     );
@@ -65,7 +65,8 @@ describe('cached integration tests', () => {
   });
 
   it('clear specific list values in cache', async () => {
-    const cached = new Cached<{ foo: string; bar: number }>(
+    const cached = new Cached<{ foo: string; bar: number }>();
+    cached.configureCache(
       { redis },
       { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
     );
@@ -92,7 +93,8 @@ describe('cached integration tests', () => {
   });
 
   it('clear all list values in cache', async () => {
-    const cached = new Cached<{ foo: string; bar: number }>(
+    const cached = new Cached<{ foo: string; bar: number }>();
+    cached.configureCache(
       { redis },
       { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
     );
@@ -116,11 +118,10 @@ describe('cached integration tests', () => {
   });
 
   it('honors prefix', async () => {
-    const cached = new Cached<string>(
-      { redis },
-      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
-    );
-    const otherCached = new Cached<string>(
+    const cached = new Cached<string>();
+    cached.configureCache({ redis }, { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result });
+    const otherCached = new Cached<string>();
+    otherCached.configureCache(
       { redis },
       { prefix: 'something-else', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
     );
@@ -130,10 +131,8 @@ describe('cached integration tests', () => {
   });
 
   it('expires', async () => {
-    const cached = new Cached<string>(
-      { redis },
-      { prefix: 'something', ttlSec: 1, parseFromCache: (result) => result, stringifyForCache: (result) => result }
-    );
+    const cached = new Cached<string>();
+    cached.configureCache({ redis }, { prefix: 'something', ttlSec: 1, parseFromCache: (result) => result, stringifyForCache: (result) => result });
 
     await cached.cache.set('foo', 'bar');
     await new Promise((resolve) => setTimeout(resolve, 1400));
@@ -141,10 +140,8 @@ describe('cached integration tests', () => {
   });
 
   it('expires with overridden ttl', async () => {
-    const cached = new Cached<string>(
-      { redis },
-      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
-    );
+    const cached = new Cached<string>();
+    cached.configureCache({ redis }, { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result });
 
     await cached.cache.set('foo', 'bar', 1);
     await new Promise((resolve) => setTimeout(resolve, 1400));
@@ -152,10 +149,8 @@ describe('cached integration tests', () => {
   });
 
   it('deletes', async () => {
-    const cached = new Cached<string>(
-      { redis },
-      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
-    );
+    const cached = new Cached<string>();
+    cached.configureCache({ redis }, { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result });
 
     await cached.cache.set('foo', 'bar');
     await cached.cache.del('foo');
@@ -163,11 +158,10 @@ describe('cached integration tests', () => {
   });
 
   it('invalidates', async () => {
-    const cached = new Cached<string>(
-      { redis },
-      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
-    );
-    const otherCached = new Cached<string>(
+    const cached = new Cached<string>();
+    cached.configureCache({ redis }, { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result });
+    const otherCached = new Cached<string>();
+    otherCached.configureCache(
       { redis },
       { prefix: 'something-else', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
     );
@@ -184,7 +178,12 @@ describe('cached integration tests', () => {
   it('wraps class nicely', async () => {
     class Foo extends Cached<string> {
       constructor() {
-        super({ redis }, { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result });
+        super();
+
+        this.configureCache(
+          { redis },
+          { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result }
+        );
       }
 
       async set(key, value) {
@@ -204,7 +203,8 @@ describe('cached integration tests', () => {
 
   it('with bad connection, get returns null', async () => {
     const notHereRedis = new Redis('not-here:6379', { enableOfflineQueue: false });
-    const cached = new Cached<string>(
+    const cached = new Cached<string>();
+    cached.configureCache(
       { redis: notHereRedis },
       { prefix: 'something', ttlSec: 1, parseFromCache: (result) => result, stringifyForCache: (result) => result }
     );
@@ -215,10 +215,8 @@ describe('cached integration tests', () => {
   });
 
   it('with bad connection, invalidate on reconnection', async () => {
-    const cached = new Cached<string>(
-      { redis },
-      { prefix: 'something', ttlSec: 1, parseFromCache: (result) => result, stringifyForCache: (result) => result }
-    );
+    const cached = new Cached<string>();
+    cached.configureCache({ redis }, { prefix: 'something', ttlSec: 1, parseFromCache: (result) => result, stringifyForCache: (result) => result });
 
     await cached.cache.set('foo', 'bar');
     expect(await cached.cache.get('foo')).to.eql('bar');
