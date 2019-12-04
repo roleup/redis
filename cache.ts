@@ -305,7 +305,9 @@ export class Cache<T> implements CacheInterface<T> {
       });
       stream.on('data', async (resultKeys) => {
         stream.pause();
-        await this.services.redis.del(...resultKeys);
+        if (resultKeys.length > 0) {
+          await this.services.redis.del(...resultKeys);
+        }
         stream.resume();
       });
 

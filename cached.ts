@@ -51,14 +51,26 @@ class NoCache<T> implements CacheInterface<T> {
  * @class
  */
 export class Cached<T> {
+  /**
+   */
   constructor() {
     this._cache = new NoCache<T>();
   }
 
-  configureCache(services: ServicesInterface, config: ConfigInterface<T>) {
+  /**
+   * Initialize cache configuration
+   * @param {ServicesInterface} services
+   * @param {ConfigInterface} config
+   * @returns {void}
+   */
+  configureCache(services: ServicesInterface, config: ConfigInterface<T>): void {
     this._cache = new Cache<T>(services, config);
   }
 
+  /**
+   * Cache getter
+   * @returns {CacheInterface<T>}
+   */
   get cache(): CacheInterface<T> {
     return this._cache;
   }

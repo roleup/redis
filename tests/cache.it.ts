@@ -117,6 +117,19 @@ describe('cached integration tests', () => {
     expect(await cached.cache.get('foo')).to.eql({ foo: 'no-conflict', bar: 90 });
   });
 
+  it('clear empty lists', async () => {
+    const cached = new Cached<{ foo: string; bar: number }>();
+    cached.configureCache(
+      { redis },
+      { prefix: 'something', ttlSec: 10, parseFromCache: (result) => JSON.parse(result), stringifyForCache: (result) => JSON.stringify(result) }
+    );
+
+    // Was throwing an exception
+    await cached.cache.delLists();
+
+    expect(await cached.cache.getList('foo')).to.eql(null);
+  });
+
   it('honors prefix', async () => {
     const cached = new Cached<string>();
     cached.configureCache({ redis }, { prefix: 'something', ttlSec: 10, parseFromCache: (result) => result, stringifyForCache: (result) => result });
