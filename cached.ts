@@ -9,8 +9,8 @@ interface ConfigInterface<T> {
   prefix: string;
   ttlSec: number;
   resetOnReconnection?: boolean;
-  stringifyForCache(instance: T): string;
-  parseFromCache(instance: string): T;
+  stringifyForCache(instance: T): Promise<string> | string;
+  parseFromCache(instance: string): Promise<T> | T;
 }
 
 /* eslint-disable class-methods-use-this, require-jsdoc, no-empty-function, @typescript-eslint/no-empty-function */

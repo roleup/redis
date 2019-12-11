@@ -11,8 +11,8 @@ interface ConfigInterface<T> {
   prefix: string;
   ttlSec: number;
   resetOnReconnection?: boolean;
-  stringifyForCache(instance: T): string;
-  parseFromCache(instance: string): T;
+  stringifyForCache(instance: T): Promise<string> | string;
+  parseFromCache(instance: string): Promise<T> | T;
 }
 
 export interface CacheInterface<T> {
@@ -142,7 +142,7 @@ export class Cache<T> implements CacheInterface<T> {
       return;
     }
 
-    const value = this.config.stringifyForCache(instance);
+    const value = await this.config.stringifyForCache(instance);
 
     if (!isString(value) || value.length === 0) {
       await this.del(key);
@@ -176,8 +176,7 @@ export class Cache<T> implements CacheInterface<T> {
       return;
     }
 
-    const stringifiedInstances = instances
-      .filter((instance) => !!instance)
+    const stringifiedInstances = await Bluebird.filter(instances, (instance) => !!instance)
       .map((instance) => this.config.stringifyForCache(instance))
       .filter((instance) => !!instance);
 
