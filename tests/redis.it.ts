@@ -15,27 +15,6 @@ describe('integration tests', () => {
     redis && (await redis.disconnect());
   });
 
-  it('gets lock', async () => {
-    redis = new Redis({
-      host: process.env.REDIS_HOST,
-      port: process.env.REDIS_PORT,
-    });
-
-    const lockId = uuid();
-
-    const lock = await redis.lock(lockId, 30);
-    expect(lock).not.to.eql(null);
-
-    const otherLock = await redis.lock(lockId, 30);
-    expect(otherLock).to.eql(null);
-
-    // @ts-ignore
-    await lock.unlock();
-
-    const lastLock = await redis.lock(lockId, 30);
-    expect(lastLock).not.to.eql(null);
-  });
-
   it('debounces many calls using redis', async () => {
     redis = new Redis({
       host: process.env.REDIS_HOST,
@@ -64,6 +43,27 @@ describe('integration tests', () => {
     await Promise.delay(timeoutMs * 2);
 
     expect(calls).to.eql(totalCalls);
-    expect(counter).to.eql(3);
+    expect(counter).to.eql(2);
+  });
+
+  it('gets lock', async () => {
+    redis = new Redis({
+      host: process.env.REDIS_HOST,
+      port: process.env.REDIS_PORT,
+    });
+
+    const lockId = uuid();
+
+    const lock = await redis.lock(lockId, 30);
+    expect(lock).not.to.eql(null);
+
+    const otherLock = await redis.lock(lockId, 30);
+    expect(otherLock).to.eql(null);
+
+    // @ts-ignore
+    await lock.unlock();
+
+    const lastLock = await redis.lock(lockId, 30);
+    expect(lastLock).not.to.eql(null);
   });
 });

@@ -44,13 +44,35 @@ export class Redis extends IORedis {
    * @returns {Promise<Lock|null>}
    */
   async lock(key, ttl): Promise<Redlock.Lock | null> {
-    return this.redlock.lock(key, ttl).catch((error) => {
-      if (error && error.message && error.message.includes('attempts to lock the resource')) {
-        return null;
-      }
+    return this.redlock
+      .lock(key, ttl)
+      .then((redlock) => {
+        return {
+          ...redlock,
+          unlock: async () => {
+            try {
+              await redlock.unlock();
+            } catch (error) {
+              if (error.message.includes('Unable to fully release the lock on resource')) {
+                // eslint-disable-next-line no-console
+                console.error(error.message);
+                // eslint-disable-next-line no-console
+                console.error('Above error is likely caused by the lock expiring before unlock');
+                return;
+              }
 
-      throw error;
-    });
+              throw error;
+            }
+          },
+        } as any;
+      })
+      .catch((error) => {
+        if (error && error.message && error.message.includes('attempts to lock the resource')) {
+          return null;
+        }
+
+        throw error;
+      });
   }
 
   /**
