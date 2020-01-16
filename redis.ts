@@ -1,5 +1,5 @@
 import Bluebird from 'bluebird';
-import IORedis from 'ioredis';
+import IORedis, { KeyType, ScanStreamOption } from 'ioredis';
 import Redlock from 'redlock';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
@@ -87,14 +87,38 @@ export class Redis extends IORedis {
 
   /**
    * Wrapper for scanStream that returns a promise
-   * @param {*} args
-   * @returns {Promise<*>}
+   * @param {ScanStreamOption} options
+   * @returns {Promise<string[]>}
    */
-  async scanPromise(...args): Promise<string[]> {
+  async scanPromise(options?: ScanStreamOption): Promise<string[]> {
     return new Promise((resolve, reject) => {
-      const stream = this.scanStream(...args);
+      const stream = this.scanStream(options);
       const keys = [] as string[];
 
+      stream.on('data', (resultKeys) => {
+        // eslint-disable-next-line no-restricted-syntax
+        for (const element of resultKeys) {
+          keys.push(element);
+        }
+      });
+
+      stream.on('error', (err) => reject(err));
+      stream.on('end', () => resolve(keys));
+    });
+  }
+
+  /**
+   * Wrapper for scanStream that returns a promise
+   * @param {KeyType} key
+   * @param {ScanStreamOption} options
+   * @returns {Promise<string[]>}
+   */
+  async zscanPromise(key: KeyType, options?: ScanStreamOption): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      const stream = this.zscanStream(key, options);
+      const keys = [] as string[];
+
+      // eslint-disable-next-line sonarjs/no-identical-functions
       stream.on('data', (resultKeys) => {
         // eslint-disable-next-line no-restricted-syntax
         for (const element of resultKeys) {
