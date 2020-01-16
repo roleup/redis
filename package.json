@@ -103,6 +103,7 @@
     "url": "git+https://github.com/roleup/redis.git"
   },
   "scripts": {
+    "prepublish": "npm run build",
     "build": "rm -rf ./dist && tsc -p tsconfig.build.json",
     "integration": "nyc mocha --recursive -r source-map-support/register -r ts-node/register -r tsconfig-paths/register --use_strict --exit \"tests/**/*.it.+(ts|js)\"",
     "lint": "fixpack && prettier-eslint --write && eslint --fix \"**/*.{js,ts}\"",
