@@ -43,7 +43,7 @@ export class Redis extends IORedis {
    * @param {number} ttl
    * @returns {Promise<Lock|null>}
    */
-  async lock(key, ttl): Promise<Redlock.Lock | null> {
+  async lock(key: string, ttl: number): Promise<Redlock.Lock | null> {
     return this.redlock
       .lock(key, ttl)
       .then((redlock) => {
@@ -81,7 +81,7 @@ export class Redis extends IORedis {
    * @param {object} [config={ retryCount: 5 }]
    * @returns {Redlock}
    */
-  createRedlock(config = { retryCount: 0 }): Redlock {
+  createRedlock(config: Redlock.Options = { retryCount: 0 }): Redlock {
     return new Redlock([this], config);
   }
 
